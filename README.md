@@ -1,6 +1,6 @@
 ## 项目介绍
 
-​	刚注册t00ls的时候发现论坛中有自动签到脚本，在这篇文章中:https://www.t00ls.com/articles-70458.html  但由于这个脚本是用python写的，而我自己的机子上只是跑一些简单的docker容器，没有安装python环境，就想用go来编写一个然后编译为可执行文件，并写入计划任务（python也可以编译，但想锻炼一下go编写脚本的能力）
+​	刚注册t00ls的时候发现论坛中有自动签到脚本，在这篇文章中:https://www.t00ls.com/articles-70458.html  ，但由于这个脚本是用python写的，而我自己的机子上只是跑一些简单的docker容器，没有安装python环境，就想用go来编写一个然后编译为可执行文件，并写入计划任务（python也可以编译，但想锻炼一下go编写脚本的能力）
 
 项目代码：https://github.com/Wink541/T00ls
 
