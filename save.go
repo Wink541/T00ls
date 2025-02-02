@@ -22,10 +22,6 @@ type SendInfo struct {
 	Message   []byte
 }
 
-func main() {
-
-}
-
 func SendMail(info SendInfo) {
 	err := smtp.SendMail(
 		info.SmtpServer.Host+":"+info.SmtpServer.Port,
