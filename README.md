@@ -10,8 +10,8 @@
 	{
 		"proxy": "",
 		"accountBase64Text":[
-			"",
-			""
+			"eyJ1c2VybmFtZSI6Inh4eHh4IiwicGFzc3dvcmQiOiJ4eHh4eCIsInF1ZXN0aW9uSWQiOiJ4eHh4eCIsImFuc3dlciI6Inh4eHh4In0=",
+			"eyJ1c2VybmFtZSI6Inh4eHh4IiwicGFzc3dvcmQiOiJ4eHh4eCIsInF1ZXN0aW9uSWQiOiJ4eHh4eCIsImFuc3dlciI6Inh4eHh4In0="
 		]
 	}
 
