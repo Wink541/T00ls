@@ -40,35 +40,7 @@ func main() {
 	}
 
 	if _, err := os.Stat(ConfigPath); os.IsNotExist(err) {
-		username, err := util.ReadBytesFromStdIN("请输入用户名: ")
-		if err != nil {
-			fmt.Print(err)
-			os.Exit(1)
-		}
-		password, err := util.ReadBytesFromStdIN("请输入密码: ")
-		if err != nil {
-			fmt.Print(err)
-			os.Exit(1)
-		}
-		secQuestionID, err := util.ReadBytesFromStdIN("请输入密保问题ID: ")
-		if err != nil {
-			fmt.Print(err)
-			os.Exit(1)
-		}
-		secQuestionAnswer, err := util.ReadBytesFromStdIN("请输入密保问题答案: ")
-		if err != nil {
-			fmt.Print(err)
-			os.Exit(1)
-		}
-		err = makeConfig(string(username),
-			string(password),
-			string(secQuestionID),
-			string(secQuestionAnswer),
-			configPassword)
-		if err != nil {
-			fmt.Print(err)
-			os.Exit(1)
-		}
+		promptConfig(configPassword)
 	}
 
 	for {
@@ -103,4 +75,46 @@ func makeConfig(username, password, secQuestionID, secQuestionAnswer string, con
 	}
 
 	return os.WriteFile(ConfigPath, data, 0600)
+}
+
+func promptConfig(configPassword []byte) {
+	secQuestions := `
+    # 安全提问参考
+    # 0 = 没有安全提问
+    # 1 = 母亲的名字
+    # 2 = 爷爷的名字
+    # 3 = 父亲出生的城市
+    # 4 = 您其中一位老师的名字
+    # 5 = 您个人计算机的型号
+    # 6 = 您最喜欢的餐馆名称
+    # 7 = 驾驶执照的最后四位数字`
+	username, err := util.ReadBytesFromStdIN("请输入用户名: ")
+	if err != nil {
+		fmt.Print(err)
+		os.Exit(1)
+	}
+	password, err := util.ReadBytesFromStdIN("请输入密码: ")
+	if err != nil {
+		fmt.Print(err)
+		os.Exit(1)
+	}
+	secQuestionID, err := util.ReadBytesFromStdIN(secQuestions + "\n请输入密保问题ID: ")
+	if err != nil {
+		fmt.Print(err)
+		os.Exit(1)
+	}
+	secQuestionAnswer, err := util.ReadBytesFromStdIN("请输入密保问题答案: ")
+	if err != nil {
+		fmt.Print(err)
+		os.Exit(1)
+	}
+	err = makeConfig(string(username),
+		string(password),
+		string(secQuestionID),
+		string(secQuestionAnswer),
+		configPassword)
+	if err != nil {
+		fmt.Print(err)
+		os.Exit(1)
+	}
 }

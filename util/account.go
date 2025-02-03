@@ -280,6 +280,5 @@ func ReadBytesFromStdIN(msg string) (res []byte, err error) {
 		err = fmt.Errorf("读取失败: %s%s%s", Red, err, Reset)
 		return
 	}
-
 	return bytes.TrimSpace(res), nil
 }
