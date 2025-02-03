@@ -1,4 +1,4 @@
-package main
+package util
 
 import (
 	"bytes"
@@ -74,19 +74,6 @@ var (
 	Warning *log.Logger
 )
 
-func main() {
-	AbsPath := GetAbsPath()
-	logFile, _ := os.OpenFile(filepath.Join(AbsPath, "app.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	defer logFile.Close()
-	LogKeep(logFile)
-
-	if len(os.Args) != 2 {
-		fmt.Printf("Usage: %s <filename>\n", os.Args[0])
-		os.Exit(1)
-	}
-	RunTask(os.Args[1])
-}
-
 func RunTask(filename string) {
 	fileInfo, proxyUrl := LoadFile(filename)
 	var transport *http.Transport
@@ -104,7 +91,7 @@ func RunTask(filename string) {
 	}
 
 	for _, base64Text := range fileInfo.AccountBase64Text {
-		var accountInfo = base64Text.ToAccountInfo()
+		accountInfo := base64Text.ToAccountInfo()
 		AccountSignIn(accountInfo, transport)
 	}
 }
