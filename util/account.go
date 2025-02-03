@@ -72,7 +72,7 @@ type LoginRespSuccess struct {
 	} `json:"cookie"`
 }
 
-type SignInResp struct {
+type CheckInResponse struct {
 	Status  string `json:"status"`
 	Message string `json:"message"`
 }
@@ -125,12 +125,14 @@ func RunTask(config_file string, password []byte) (err error) {
 		accountInfo, err := base64Text.ToAccountInfo(password)
 		if err != nil {
 			Error.Println(err)
+			fmt.Println(err)
 			errorChan <- err
 			continue
 		}
 		err = AccountSignIn(*accountInfo, transport)
 		if err != nil {
 			Error.Println(err)
+			fmt.Println(err)
 			errorChan <- err
 		}
 	}
@@ -172,11 +174,18 @@ func AccountSignIn(accountInfo AccountInfo, transport *http.Transport) (err erro
 	}
 	loginBody, loginCookie := POSTRequest(loginReq, transport)
 	var loginResp LoginResp
-	_ = json.Unmarshal(loginBody, &loginResp)
+	err = json.Unmarshal(loginBody, &loginResp)
+	if err != nil {
+		err = fmt.Errorf("用户 %s%s%s 登录失败: %s%v: %s%s", Yellow, accountInfo.Username, Reset, Red, err, loginBody, Reset)
+		return
+	}
 	if loginResp.Status != "success" {
 		err = fmt.Errorf("用户 %s%s%s 登录失败: %s%s%s ", Yellow, accountInfo.Username, Reset, Yellow, loginResp.Message, Reset)
+		return
 	}
-	Success.Printf("用户 %s%s%s 登录成功: %s登录成功~%s", Green, accountInfo.Username, Reset, Green, Reset)
+	msg := fmt.Sprintf("用户 %s%s%s 登录成功: %s登录成功~%s", Green, accountInfo.Username, Reset, Green, Reset)
+	fmt.Println(msg)
+	Success.Print(msg)
 
 	var loginRespSuccess LoginRespSuccess
 	_ = json.Unmarshal(loginBody, &loginRespSuccess)
@@ -191,10 +200,16 @@ func AccountSignIn(accountInfo AccountInfo, transport *http.Transport) (err erro
 		return
 	}
 	checkInBody, _ := POSTRequest(checkInReq, transport)
-	var checkInResp SignInResp
-	_ = json.Unmarshal(checkInBody, &checkInResp)
+	var checkInResp CheckInResponse
+	err = json.Unmarshal(checkInBody, &checkInResp)
+	if err != nil {
+		err = fmt.Errorf("用户 %s%s%s 签到失败: %s%v: %s%s", Yellow, accountInfo.Username, Reset, Red, err, checkInBody, Reset)
+		return
+	}
 	if checkInResp.Status == "success" && checkInResp.Message == "success" {
-		Success.Printf("用户 %s%s%s 签到成功: %s%s%s", Green, accountInfo.Username, Reset, Green, "签到成功~", Reset)
+		msg := fmt.Sprintf("用户 %s%s%s 签到成功: %s%s%s", Green, accountInfo.Username, Reset, Green, "签到成功~", Reset)
+		fmt.Println(msg)
+		Success.Println(msg)
 		return
 	}
 
@@ -205,7 +220,7 @@ func AccountSignIn(accountInfo AccountInfo, transport *http.Transport) (err erro
 		return fmt.Errorf("用户 %s%s%s 签到失败: %s%s%s", Yellow, accountInfo.Username, Reset, Yellow, checkInResp.Message, Reset)
 	}
 
-	return fmt.Errorf("用户 %s%s%s 签到失败: %s%s%s", Yellow, accountInfo.Username, Reset, Red, "未知错误~", Reset)
+	return fmt.Errorf("用户 %s%s%s 签到失败: %s%s%s", Yellow, accountInfo.Username, Reset, Red, checkInResp.Message, Reset)
 }
 
 func CreateReq(reqUrl string, data url.Values, cookie []*http.Cookie) (*http.Request, error) {
