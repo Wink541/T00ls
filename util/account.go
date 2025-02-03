@@ -21,10 +21,14 @@ func (Base64 Base64) Decode() []byte {
 	return data
 }
 
-func (Base64 Base64) ToAccountInfo() AccountInfo {
-	var accountInfo AccountInfo
-	_ = json.Unmarshal(Base64.Decode(), &accountInfo)
-	return accountInfo
+func (Base64 Base64) ToAccountInfo() (*AccountInfo, error) {
+	accountInfo := new(AccountInfo)
+	err := json.Unmarshal(Base64.Decode(), accountInfo)
+	if err != nil {
+		Error.Printf("解析账号信息失败: %s%s%s", Red, err, Reset)
+		return nil, err
+	}
+	return accountInfo, nil
 }
 
 type ConfigInfo struct {
@@ -96,10 +100,19 @@ func RunTask(config_file string) (err error) {
 		}
 	}
 
+	if len(config.AccountBase64Text) == 0 {
+		return fmt.Errorf("未发现账号信息, 请检查配置文件后再次运行")
+	}
+
 	errorChan := make(chan error)
 	for _, base64Text := range config.AccountBase64Text {
-		accountInfo := base64Text.ToAccountInfo()
-		err = AccountSignIn(accountInfo, transport)
+		accountInfo, err := base64Text.ToAccountInfo()
+		if err != nil {
+			Error.Println(err)
+			errorChan <- err
+			continue
+		}
+		err = AccountSignIn(*accountInfo, transport)
 		if err != nil {
 			Error.Println(err)
 			errorChan <- err
@@ -139,7 +152,7 @@ func AccountSignIn(accountInfo AccountInfo, transport *http.Transport) (err erro
 	}
 	loginReq, loginErr := CreateReq(loginUrl, loginData, []*http.Cookie{})
 	if loginErr != nil {
-		return loginErr
+		return fmt.Errorf("用户 %s%s%s 登录失败: %s%s%s", Yellow, accountInfo.Username, Reset, Red, loginErr, Reset)
 	}
 	loginBody, loginCookie := POSTRequest(loginReq, transport)
 	var loginResp LoginResp
@@ -175,7 +188,8 @@ func AccountSignIn(accountInfo AccountInfo, transport *http.Transport) (err erro
 		}
 		return fmt.Errorf("用户 %s%s%s 签到失败: %s%s%s", Yellow, accountInfo.Username, Reset, Yellow, checkInResp.Message, Reset)
 	}
-	return
+
+	return fmt.Errorf("用户 %s%s%s 签到失败: %s%s%s", Yellow, accountInfo.Username, Reset, Red, "未知错误~", Reset)
 }
 
 func CreateReq(reqUrl string, data url.Values, cookie []*http.Cookie) (*http.Request, error) {
