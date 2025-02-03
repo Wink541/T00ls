@@ -16,14 +16,20 @@ import (
 
 type Base64UserConfig string
 
-func (Base64 Base64UserConfig) Decode() []byte {
-	data, _ := base64.StdEncoding.DecodeString(string(Base64))
-	return data
+func (b64 Base64UserConfig) Decode(password []byte) []byte {
+	data, _ := base64.StdEncoding.DecodeString(string(b64))
+	decData, err := AES_GCM_Decrypt(password, data)
+	if err != nil {
+		Error.Printf("解密账号信息失败: %s%s%s", Red, err, Reset)
+		return nil
+	}
+
+	return decData
 }
 
-func (Base64 Base64UserConfig) ToAccountInfo() (*AccountInfo, error) {
+func (b64 Base64UserConfig) ToAccountInfo(password []byte) (*AccountInfo, error) {
 	accountInfo := new(AccountInfo)
-	err := json.Unmarshal(Base64.Decode(), accountInfo)
+	err := json.Unmarshal(b64.Decode(password), accountInfo)
 	if err != nil {
 		Error.Printf("解析账号信息失败: %s%s%s", Red, err, Reset)
 		return nil, err
@@ -41,6 +47,16 @@ type AccountInfo struct {
 	Password   string `json:"password"`
 	QuestionId string `json:"questionId"`
 	Answer     string `json:"answer"`
+}
+
+func (accountInfo *AccountInfo) ToBase64Text(password []byte) Base64UserConfig {
+	data, _ := json.Marshal(accountInfo)
+	encData, err := AES_GCM_Encrypt(password, data)
+	if err != nil {
+		Error.Printf("加密账号信息失败: %s%s%s", Red, err, Reset)
+		return ""
+	}
+	return Base64UserConfig(base64.StdEncoding.EncodeToString(encData))
 }
 
 type LoginResp struct {
@@ -78,7 +94,7 @@ var (
 	Warning *log.Logger
 )
 
-func RunTask(config_file string) (err error) {
+func RunTask(config_file string, password []byte) (err error) {
 	config, err := LoadConfigFile(config_file)
 	if err != nil {
 		return
@@ -106,7 +122,7 @@ func RunTask(config_file string) (err error) {
 
 	errorChan := make(chan error)
 	for _, base64Text := range config.AccountBase64Text {
-		accountInfo, err := base64Text.ToAccountInfo()
+		accountInfo, err := base64Text.ToAccountInfo(password)
 		if err != nil {
 			Error.Println(err)
 			errorChan <- err
@@ -233,11 +249,22 @@ func LogKeep(logFile *os.File) {
 	Warning = log.New(logFile, fmt.Sprintf("%s[WARNING]%s ", Yellow, Reset), log.Ldate|log.Ltime)
 }
 
-func GetAbsPath() string {
+func GetAbsPath() (path string) {
 	ex, err := os.Executable()
 	if err != nil {
-		panic(err)
+		return ""
 	}
 	exPath := filepath.Dir(ex)
 	return exPath
+}
+
+func ReadBytesFromStdIN(msg string) (res []byte, err error) {
+	fmt.Print(msg)
+	_, err = fmt.Scanln(&res)
+	if err != nil {
+		err = fmt.Errorf("读取失败: %s%s%s", Red, err, Reset)
+		return
+	}
+
+	return bytes.TrimSpace(res), nil
 }
