@@ -2,3 +2,4 @@
 *.exe
 *.so
 *.json
+go.sum
