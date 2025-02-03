@@ -1,4 +1,4 @@
-package main
+package util
 
 import (
 	"fmt"
@@ -20,10 +20,6 @@ type SendInfo struct {
 	Sender
 	Recipient []string
 	Message   []byte
-}
-
-func main() {
-
 }
 
 func SendMail(info SendInfo) {
