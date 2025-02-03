@@ -47,10 +47,10 @@ func main() {
 		err = util.RunTask(ConfigPath, configPassword)
 		if err != nil {
 			util.Error.Println(err)
-			fmt.Printf("用户签到失败: %v", err)
+			fmt.Printf("签到失败: %v", err)
 			os.Exit(1)
 		}
-		fmt.Println("用户签到完成, 等待下一次签到")
+		fmt.Println("签到完成, 等待24h后下一次签到")
 		time.Sleep(24 * time.Hour)
 	}
 }

@@ -120,26 +120,20 @@ func RunTask(config_file string, password []byte) (err error) {
 		return fmt.Errorf("未发现账号信息, 请检查配置文件后再次运行")
 	}
 
-	errorChan := make(chan error)
 	for _, base64Text := range config.AccountBase64Text {
 		accountInfo, err := base64Text.ToAccountInfo(password)
 		if err != nil {
 			Error.Println(err)
 			fmt.Println(err)
-			errorChan <- err
 			continue
 		}
 		err = AccountSignIn(*accountInfo, transport)
 		if err != nil {
 			Error.Println(err)
 			fmt.Println(err)
-			errorChan <- err
 		}
 	}
 
-	if len(errorChan) > 0 {
-		return fmt.Errorf("存在错误, 请查看日志")
-	}
 	return
 }
 
