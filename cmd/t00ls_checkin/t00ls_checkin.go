@@ -4,6 +4,7 @@ import (
 	"T00ls/util"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -12,7 +13,7 @@ import (
 func main() {
 	logPath := "app.log"
 	AbsPath := util.GetAbsPath()
-	configPath := flag.String("config", "account.json", "log file path")
+	configPath := flag.String("config", "account.json", "config file path")
 	flag.Parse()
 
 	if *configPath == "" {
@@ -28,8 +29,11 @@ func main() {
 	util.LogKeep(logFile)
 
 	for {
-		util.RunTask(*configPath)
-		fmt.Println("Sleep 24 hours for next checkin.")
+		err = util.RunTask(*configPath)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println("用户签到完成, 等待下一次签到")
 		time.Sleep(24 * time.Hour)
 	}
 }

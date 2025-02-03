@@ -27,7 +27,7 @@ func (Base64 Base64) ToAccountInfo() AccountInfo {
 	return accountInfo
 }
 
-type FileInfo struct {
+type ConfigInfo struct {
 	Proxy             string
 	AccountBase64Text []Base64 `json:"accountBase64Text"`
 }
@@ -74,45 +74,60 @@ var (
 	Warning *log.Logger
 )
 
-func RunTask(filename string) {
-	fileInfo, proxyUrl := LoadFile(filename)
+func RunTask(config_file string) (err error) {
+	config, err := LoadConfigFile(config_file)
+	if err != nil {
+		return
+	}
 	var transport *http.Transport
-	proxy, err := url.Parse(proxyUrl)
-	if err != nil || proxy.Scheme == "" || proxy.Host == "" || proxy.Port() == "" {
+	if config.Proxy == "" {
 		log.Printf("未发现代理配置,将正常运行")
 		transport = &http.Transport{
 			Proxy: nil,
 		}
 	} else {
-		log.Printf("配置代理: %s%s%s", Cyan, proxyUrl, Reset)
+		proxy, err := url.Parse(config.Proxy)
+		if err != nil {
+			return fmt.Errorf("代理配置错误: %s%s%s, 请检查配置文件后再次运行", Red, err, Reset)
+		}
+		log.Printf("配置代理: %s%s%s", Cyan, config.Proxy, Reset)
 		transport = &http.Transport{
 			Proxy: http.ProxyURL(proxy),
 		}
 	}
 
-	for _, base64Text := range fileInfo.AccountBase64Text {
+	errorChan := make(chan error)
+	for _, base64Text := range config.AccountBase64Text {
 		accountInfo := base64Text.ToAccountInfo()
-		AccountSignIn(accountInfo, transport)
+		err = AccountSignIn(accountInfo, transport)
+		if err != nil {
+			Error.Println(err)
+			errorChan <- err
+		}
 	}
+
+	if len(errorChan) > 0 {
+		return fmt.Errorf("存在错误, 请查看日志")
+	}
+	return
 }
 
-func LoadFile(filename string) (FileInfo, string) {
-	log.Printf("开始读取配置文件: %s%s%s", Cyan, filename, Reset)
-	file, err := os.ReadFile(filename)
+func LoadConfigFile(configFile string) (config ConfigInfo, err error) {
+	log.Printf("开始读取配置文件: %s%s%s", Cyan, configFile, Reset)
+	file, err := os.ReadFile(configFile)
 	if err != nil {
-		Error.Printf("配置文件读取错误: %s%s%s, 请检查配置文件后再次运行", Red, err, Reset)
-		os.Exit(-1)
+		err = fmt.Errorf("配置文件读取错误: %s%s%s, 请检查配置文件后再次运行", Red, err, Reset)
+		return
 	}
-	var fileInfo FileInfo
-	err = json.Unmarshal(file, &fileInfo)
+	err = json.Unmarshal(file, &config)
 	if err != nil {
-		Error.Printf("配置文件格式错误: %s%s%s, 请检查配置文件后再次运行", Red, err, Reset)
-		os.Exit(-1)
+		err = fmt.Errorf("配置文件格式错误: %s%s%s, 请检查配置文件后再次运行", Red, err, Reset)
+		return
 	}
-	return fileInfo, fileInfo.Proxy
+	return
 }
 
-func AccountSignIn(accountInfo AccountInfo, transport *http.Transport) {
+func AccountSignIn(accountInfo AccountInfo, transport *http.Transport) (err error) {
 	log.Printf("用户 %s%s%s 开始登录...", Cyan, accountInfo.Username, Reset)
 	loginUrl := "https://www.t00ls.com/login.json"
 	loginData := url.Values{
@@ -122,52 +137,58 @@ func AccountSignIn(accountInfo AccountInfo, transport *http.Transport) {
 		"questionid": {accountInfo.QuestionId},
 		"answer":     {accountInfo.Answer},
 	}
-	loginReq := CreateReq(loginUrl, loginData, []*http.Cookie{})
+	loginReq, loginErr := CreateReq(loginUrl, loginData, []*http.Cookie{})
+	if loginErr != nil {
+		return loginErr
+	}
 	loginBody, loginCookie := POSTRequest(loginReq, transport)
 	var loginResp LoginResp
 	_ = json.Unmarshal(loginBody, &loginResp)
-	if loginResp.Status == "success" {
-		Success.Printf("用户 %s%s%s 登录成功: %s登录成功~%s", Green, accountInfo.Username, Reset, Green, Reset)
-		var loginRespSuccess LoginRespSuccess
-		_ = json.Unmarshal(loginBody, &loginRespSuccess)
-		signInUrl := "https://www.t00ls.com/ajax-sign.json"
-		signInData := url.Values{
-			"formhash":   {loginRespSuccess.Formhash},
-			"signsubmit": []string{"true"},
-		}
-		signInReq := CreateReq(signInUrl, signInData, loginCookie)
-		signInBody, _ := POSTRequest(signInReq, transport)
-		var signInResp SignInResp
-		_ = json.Unmarshal(signInBody, &signInResp)
-		if signInResp.Status == "success" && signInResp.Message == "success" {
-			Success.Printf("用户 %s%s%s 签到成功: %s%s%s", Green, accountInfo.Username, Reset, Green, "签到成功~", Reset)
-			return
-		}
-
-		if signInResp.Status == "fail" {
-			if signInResp.Message == "alreadysign" {
-				Warning.Printf("用户 %s%s%s 签到失败: %s%s%s", Yellow, accountInfo.Username, Reset, Yellow, "今日已签到~", Reset)
-				return
-			}
-			Warning.Printf("用户 %s%s%s 签到失败: %s%s%s", Yellow, accountInfo.Username, Reset, Yellow, signInResp.Message, Reset)
-			return
-		}
-		return
-	} else {
-		Warning.Printf("用户 %s%s%s 登录失败: %s%s%s ", Yellow, accountInfo.Username, Reset, Yellow, loginResp.Message, Reset)
+	if loginResp.Status != "success" {
+		err = fmt.Errorf("用户 %s%s%s 登录失败: %s%s%s ", Yellow, accountInfo.Username, Reset, Yellow, loginResp.Message, Reset)
 	}
+	Success.Printf("用户 %s%s%s 登录成功: %s登录成功~%s", Green, accountInfo.Username, Reset, Green, Reset)
+
+	var loginRespSuccess LoginRespSuccess
+	_ = json.Unmarshal(loginBody, &loginRespSuccess)
+	checkInUrl := "https://www.t00ls.com/ajax-sign.json"
+	checkInData := url.Values{
+		"formhash":   {loginRespSuccess.Formhash},
+		"signsubmit": []string{"true"},
+	}
+	checkInReq, checkInErr := CreateReq(checkInUrl, checkInData, loginCookie)
+	if checkInErr != nil {
+		err = fmt.Errorf("用户 %s%s%s 签到失败: %s%s%s", Yellow, accountInfo.Username, Reset, Red, checkInErr, Reset)
+		return
+	}
+	checkInBody, _ := POSTRequest(checkInReq, transport)
+	var checkInResp SignInResp
+	_ = json.Unmarshal(checkInBody, &checkInResp)
+	if checkInResp.Status == "success" && checkInResp.Message == "success" {
+		Success.Printf("用户 %s%s%s 签到成功: %s%s%s", Green, accountInfo.Username, Reset, Green, "签到成功~", Reset)
+		return
+	}
+
+	if checkInResp.Status == "fail" {
+		if checkInResp.Message == "alreadysign" {
+			return fmt.Errorf("用户 %s%s%s 签到失败: %s%s%s", Yellow, accountInfo.Username, Reset, Yellow, "今日已签到~", Reset)
+		}
+		return fmt.Errorf("用户 %s%s%s 签到失败: %s%s%s", Yellow, accountInfo.Username, Reset, Yellow, checkInResp.Message, Reset)
+	}
+	return
 }
 
-func CreateReq(reqUrl string, data url.Values, cookie []*http.Cookie) *http.Request {
+func CreateReq(reqUrl string, data url.Values, cookie []*http.Cookie) (*http.Request, error) {
 	req, err := http.NewRequest("POST", reqUrl, bytes.NewBufferString(data.Encode()))
 	if err != nil {
-		Error.Printf("创建请求时发生错误: %s%s%s", Red, err, Reset)
+		err = fmt.Errorf("创建请求时发生错误: %s%s%s", Red, err, Reset)
+		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	for _, c := range cookie {
 		req.AddCookie(c)
 	}
-	return req
+	return req, nil
 }
 
 func POSTRequest(req *http.Request, transport *http.Transport) ([]byte, []*http.Cookie) {
