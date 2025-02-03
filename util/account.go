@@ -14,14 +14,14 @@ import (
 	"time"
 )
 
-type Base64 string
+type Base64UserConfig string
 
-func (Base64 Base64) Decode() []byte {
+func (Base64 Base64UserConfig) Decode() []byte {
 	data, _ := base64.StdEncoding.DecodeString(string(Base64))
 	return data
 }
 
-func (Base64 Base64) ToAccountInfo() (*AccountInfo, error) {
+func (Base64 Base64UserConfig) ToAccountInfo() (*AccountInfo, error) {
 	accountInfo := new(AccountInfo)
 	err := json.Unmarshal(Base64.Decode(), accountInfo)
 	if err != nil {
@@ -33,7 +33,7 @@ func (Base64 Base64) ToAccountInfo() (*AccountInfo, error) {
 
 type ConfigInfo struct {
 	Proxy             string
-	AccountBase64Text []Base64 `json:"accountBase64Text"`
+	AccountBase64Text []Base64UserConfig `json:"accountBase64Text"`
 }
 
 type AccountInfo struct {

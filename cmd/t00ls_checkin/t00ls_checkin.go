@@ -22,7 +22,9 @@ func main() {
 
 	logFile, err := os.OpenFile(filepath.Join(AbsPath, logPath), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
-		panic(err)
+		util.Error.Println(err)
+		fmt.Printf("日志文件打开失败: %v", err)
+		os.Exit(1)
 	}
 	defer logFile.Close()
 	util.LogKeep(logFile)
@@ -31,7 +33,7 @@ func main() {
 		err = util.RunTask(*configPath)
 		if err != nil {
 			util.Error.Println(err)
-			fmt.Println("用户签到失败, 请查看日志")
+			fmt.Printf("用户签到失败: %v", err)
 			os.Exit(1)
 		}
 		fmt.Println("用户签到完成, 等待下一次签到")
