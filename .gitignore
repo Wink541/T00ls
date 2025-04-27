@@ -1,0 +1,6 @@
+*.log
+*.exe
+*.so
+*.json
+t00ls_checkin
+go.sum
